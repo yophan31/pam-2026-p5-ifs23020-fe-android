@@ -1,5 +1,6 @@
 package org.delcom.pam_p5_ifs23020.ui.screens
 
+import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -17,7 +18,6 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -27,7 +27,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -47,7 +46,6 @@ import org.delcom.pam_p5_ifs23020.ui.viewmodels.AuthLogoutUIState
 import org.delcom.pam_p5_ifs23020.ui.viewmodels.AuthUIState
 import org.delcom.pam_p5_ifs23020.ui.viewmodels.AuthViewModel
 import org.delcom.pam_p5_ifs23020.ui.viewmodels.TodoViewModel
-import org.delcom.pam_p5_ifs23020.ui.viewmodels.StatsUIState
 
 @Composable
 fun HomeScreen(
@@ -57,7 +55,6 @@ fun HomeScreen(
 ) {
     // Ambil data dari viewmodel
     val uiStateAuth by authViewModel.uiState.collectAsState()
-    val uiStateTodo by todoViewModel.uiState.collectAsState()
 
     var isLoading by remember { mutableStateOf(false) }
     var isFreshToken by remember { mutableStateOf(false) }
@@ -68,15 +65,10 @@ fun HomeScreen(
 
         isLoading = true
         isFreshToken = true
-        uiStateAuth.authLogout = AuthLogoutUIState.Loading
-        authViewModel.loadTokenFromPreferences()
-    }
 
-    // Ambil data statistik saat token tersedia
-    LaunchedEffect(authToken) {
-        authToken?.let {
-            todoViewModel.getTodoStats(it)
-        }
+        uiStateAuth.authLogout = AuthLogoutUIState.Loading
+
+        authViewModel.loadTokenFromPreferences()
     }
 
     fun onLogout(token: String){
@@ -110,7 +102,11 @@ fun HomeScreen(
 
     LaunchedEffect(uiStateAuth.authLogout) {
         if (uiStateAuth.authLogout !is AuthLogoutUIState.Loading) {
-            RouteHelper.to(navController, ConstHelper.RouteNames.AuthLogin.path, true)
+            RouteHelper.to(
+                navController,
+                ConstHelper.RouteNames.AuthLogin.path,
+                true
+            )
         }
     }
 
@@ -121,13 +117,27 @@ fun HomeScreen(
 
     // Menu Top App Bar
     val menuItems = listOf(
-        TopAppBarMenuItem(text = "Profile", icon = Icons.Filled.Person, route = ConstHelper.RouteNames.Profile.path),
-        TopAppBarMenuItem(text = "Logout", icon = Icons.AutoMirrored.Filled.Logout, route = null, onClick = { onLogout(authToken ?: "") })
+        TopAppBarMenuItem(
+            text = "Profile",
+            icon = Icons.Filled.Person,
+            route = ConstHelper.RouteNames.Profile.path
+        ),
+        TopAppBarMenuItem(
+            text = "Logout",
+            icon = Icons.AutoMirrored.Filled.Logout,
+            route = null,
+            onClick = {
+                onLogout(authToken ?: "")
+            }
+        )
     )
 
     Column(
-        modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.background)
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.background)
     ) {
+        // Top App Bar
         TopAppBarComponent(
             navController = navController,
             title = "Home",
@@ -136,21 +146,26 @@ fun HomeScreen(
         )
         // Content
         Box(
-            modifier = Modifier.weight(1f)
+            modifier = Modifier
+                .weight(1f)
         ) {
-            // Kita pindahkan data statistik dari state ke fungsi HomeUI
-            HomeUI(statsState = uiStateTodo.stats)
+            HomeUI()
         }
+        // Bottom Nav
         BottomNavComponent(navController = navController)
     }
 }
 
-// Tambahkan parameter statsState untuk menerima data dari ViewModel
 @Composable
-fun HomeUI(statsState: StatsUIState) {
+fun HomeUI() {
+    val totalTodos = 0
+    val doneTodos = 0
+    val pendingTodos = 0
+
     Column(
         modifier = Modifier.padding(top = 16.dp)
-    ) {
+    )
+    {
         // Header App
         Card(
             modifier = Modifier
@@ -175,51 +190,34 @@ fun HomeUI(statsState: StatsUIState) {
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // Cek kondisi status data statistik
-        when (statsState) {
-            is StatsUIState.Loading -> {
-                Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator()
-                }
-            }
-            is StatsUIState.Error -> {
-                Text(
-                    text = "Gagal memuat: ${statsState.message}",
-                    color = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.fillMaxWidth().padding(16.dp),
-                    textAlign = TextAlign.Center
-                )
-            }
-            is StatsUIState.Success -> {
-                // Quick Status Cards dengan Data Asli
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 8.dp),
-                    horizontalArrangement = Arrangement.SpaceEvenly
-                ) {
-                    // Total Todos
-                    StatusCard(
-                        title = "Total",
-                        value = statsState.data.total.toString(),
-                        icon = Icons.AutoMirrored.Filled.List
-                    )
+        // Quick Status Cards
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp),
+            horizontalArrangement = Arrangement.SpaceEvenly
+        ) {
 
-                    // Selesai
-                    StatusCard(
-                        title = "Selesai",
-                        value = statsState.data.complete.toString(),
-                        icon = Icons.Default.CheckCircle
-                    )
+            // Total Todos
+            StatusCard(
+                title = "Total",
+                value = totalTodos.toString(),
+                icon = Icons.AutoMirrored.Filled.List
+            )
 
-                    // Belum
-                    StatusCard(
-                        title = "Belum",
-                        value = statsState.data.active.toString(),
-                        icon = Icons.Default.Schedule
-                    )
-                }
-            }
+            // Selesai
+            StatusCard(
+                title = "Selesai",
+                value = doneTodos.toString(),
+                icon = Icons.Default.CheckCircle
+            )
+
+            // Belum
+            StatusCard(
+                title = "Belum",
+                value = pendingTodos.toString(),
+                icon = Icons.Default.Schedule
+            )
         }
     }
 }
@@ -228,6 +226,6 @@ fun HomeUI(statsState: StatsUIState) {
 @Composable
 fun PreviewHomeUI() {
     DelcomTheme {
-        HomeUI(statsState = StatsUIState.Loading) // Isi dengan loading untuk preview
+        HomeUI()
     }
 }
